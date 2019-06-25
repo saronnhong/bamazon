@@ -23,7 +23,7 @@ connection.connect(err => {
 });
 
 function displayInventory() {
-    var query = connection.query("SELECT * FROM products",
+    var query = connection.query("SELECT item_id AS ID, product_name AS 'Product Name', department_name AS 'Department Name', price AS 'Price', stock_quantity as 'Stock Quantity' FROM products",
         (err, res) => {
             if (err) throw err;
             console.table(res);
@@ -35,54 +35,47 @@ function takeOrder() {
     inquirer.prompt([
         {
             type: "input",
-            message: "Choose the item_id of the product you wish to buy.",
+            message: "Choose the ID of the product you wish to buy.",
             name: "itemId"
         },
         {
             type: "input",
-            message: "How many units would you like to buy?",
+            message: "How many Units would you like to buy?",
             name: "purchaseAmount"
         }
     ]).then(function (response) {
         var query = connection.query("SELECT * FROM products",
-        (err, res) => {
-            if (err) throw err;
-            for(var i=0; i<res.length; i++){
-                if(res[i].item_id === parseInt(response.itemId)){
-                    if(res[i].stock_quantity < parseInt(response.purchaseAmount)){
-                        console.log("Insufficient quantity! We were not able to complete your order.");
-                        displayInventory();
-                    }else {
-                        console.log("order has been placed.");
-                        var chosenItemPrice = res[i].price;
-                        const query = connection.query(
-                            "UPDATE products SET ? WHERE ?",
-                            [
-                                {stock_quantity: (res[i].stock_quantity - response.purchaseAmount)},
-                                {item_id: response.itemId}
-                            ],
-                            (err, res2) => {
-                                if (err) throw err;
-                                console.log(res2.affectedRows + " products updated!\n");
-                                var purchasePrice = chosenItemPrice * parseInt(response.purchaseAmount);
-                                console.log("Cost of Purchase: " + purchasePrice);
-                                endConnection();
+            (err, res) => {
+                if (err) throw err;
+                for (var i = 0; i < res.length; i++) {
+                    if (res[i].item_id === parseInt(response.itemId)) {
+                        if (res[i].stock_quantity < parseInt(response.purchaseAmount)) {
+                            console.log("Insufficient quantity! We were not able to complete your order.");
+                            displayInventory();
+                        } else {
+                            console.log("Your Order has been placed.");
+                            var chosenItemPrice = res[i].price;
+                            const query = connection.query(
+                                "UPDATE products SET ? WHERE ?",
+                                [
+                                    { stock_quantity: (res[i].stock_quantity - response.purchaseAmount), product_sales: (response.purchaseAmount * res[i].price) + res[i].product_sales  },
+                                    { item_id: response.itemId }
+                                ],
+                                (err, res2) => {
+                                    if (err) throw err;
+                                    console.log(res2.affectedRows + " products updated!\n");
+                                    var purchasePrice = chosenItemPrice * parseInt(response.purchaseAmount);
+                                    console.log("Cost of Purchase: " + purchasePrice);
+                                    connection.end();
 
-                            }
-                        )
-                        
+                                }
+                            )
+
+                        }
+
                     }
-                    
                 }
-            }
-        });
-
-
-    
+            });
     });
-    
 }
 
-function endConnection(){
-    connection.end();
-}
